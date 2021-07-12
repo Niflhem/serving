@@ -55,6 +55,8 @@ var wantResource = &resource.Resource{
 		metricskey.LabelNamespaceName:     testNamespace,
 		metricskey.LabelRevisionName:      testRevision,
 		metricskey.LabelServiceName:       "testSvc",
+		"label_testlabkey":                "testlabval",
+		"annotation_testannkey":           "testannval",
 	},
 }
 
@@ -180,7 +182,7 @@ func TestAutoscalerStartMetrics(t *testing.T) {
 	metrics := &metricClient{StableConcurrency: 50.0, PanicConcurrency: 50.0}
 	newTestAutoscalerWithScalingMetric(10, 100, metrics,
 		"concurrency", true /*startInPanic*/)
-	metricstest.AssertMetric(t, metricstest.IntMetric(panicM.Name(), 1, nil).WithResource(wantResource))
+	metricstest.AssertMetricRequiredOnly(t, metricstest.IntMetric(panicM.Name(), 1, nil).WithResource(wantResource))
 }
 
 func TestAutoscalerMetrics(t *testing.T) {
@@ -189,7 +191,7 @@ func TestAutoscalerMetrics(t *testing.T) {
 	metrics := &metricClient{StableConcurrency: 50.0, PanicConcurrency: 50.0}
 	a := newTestAutoscalerNoPC(10, 100, metrics)
 	// Non-panic created autoscaler.
-	metricstest.AssertMetric(t, metricstest.IntMetric(panicM.Name(), 0, nil).WithResource(wantResource))
+	metricstest.AssertMetricRequiredOnly(t, metricstest.IntMetric(panicM.Name(), 0, nil).WithResource(wantResource))
 	ebc := expectedEBC(10, 100, 50, 1)
 	expectScale(t, a, time.Now(), ScaleResult{5, ebc, true})
 	spec := a.currentSpec()
@@ -202,7 +204,7 @@ func TestAutoscalerMetrics(t *testing.T) {
 		metricstest.FloatMetric(excessBurstCapacityM.Name(), float64(ebc), nil).WithResource(wantResource),
 		metricstest.IntMetric(panicM.Name(), 1, nil).WithResource(wantResource),
 	}
-	metricstest.AssertMetric(t, wantMetrics...)
+	metricstest.AssertMetricRequiredOnly(t, wantMetrics...)
 }
 
 func TestAutoscalerMetricsWithRPS(t *testing.T) {
@@ -222,7 +224,7 @@ func TestAutoscalerMetricsWithRPS(t *testing.T) {
 		metricstest.FloatMetric(excessBurstCapacityM.Name(), float64(ebc), nil).WithResource(wantResource),
 		metricstest.IntMetric(panicM.Name(), 1, nil).WithResource(wantResource),
 	}
-	metricstest.AssertMetric(t, wantMetrics...)
+	metricstest.AssertMetricRequiredOnly(t, wantMetrics...)
 }
 
 func TestAutoscalerStableModeIncreaseWithConcurrencyDefault(t *testing.T) {
@@ -587,7 +589,7 @@ func newTestAutoscalerWithScalingMetric(targetValue, targetBurstCapacity float64
 	if startInPanic {
 		pc.readyCount = 2
 	}
-	ctx := smetrics.RevisionContext(testNamespace, "testSvc", "testConfig", testRevision)
+	ctx := smetrics.RevisionContext(testNamespace, "testSvc", "testConfig", testRevision, map[string]string{"testannkey":"testannval"}, map[string]string{"testlabkey":"testlabval"})
 	return newAutoscaler(ctx, testNamespace, testRevision, metrics, pc, deciderSpec, nil), pc
 }
 
